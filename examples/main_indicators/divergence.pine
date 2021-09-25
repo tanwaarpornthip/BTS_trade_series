@@ -1,0 +1,215 @@
+//@version=4
+// PCC Sunday Trade Series
+// BLOCK - Prince of Songkla University, Phuket, Thailand
+// Author: Tanwa Arpornthip
+// Contact: tanwa.a@phuket.psu.ac.th
+// 2021-09-25
+
+strategy("PCC Divergence indicator", overlay=true, default_qty_type=strategy.percent_of_equity, 
+  default_qty_value=100, commission_type=strategy.commission.percent, commission_value=0, 
+  pyramiding=0, calc_on_order_fills=false, precision=7, calc_on_every_tick=true)
+
+// === STRATEGY PARAMETERS ===
+// === With inputs
+want_long = input(title="Long order?", type=input.bool, defval=true)
+want_short = input(title="Short order?", type=input.bool, defval=true)
+tp_atr = input(title="x ATR TP", type=input.float, defval=1.0, minval=0)
+sl_atr = input(title="x ATR SL", type=input.float, defval=1.0, minval=0)
+atr_range = input(title="ATR period", type=input.integer, defval=14)
+
+direction = input(title="Direction", defval="Conventional", options=["Contrarian", "Conventional"])
+
+// === Without inputs
+average_true_range = atr(atr_range)
+
+// === INPUT BACKTEST RANGE ===
+FromYear = input(defval=2017, title="From Year", minval=2000)
+ToYear = input(defval=9999, title="To Year", minval=2000)
+FromMonth = input(defval=1, title="From Month", minval=1, maxval=12)
+ToMonth = input(defval=1, title="To Month", minval=1, maxval=12)
+FromDay = input(defval=1, title="From Day", minval=1, maxval=31)
+ToDay = input(defval=31, title="To Day", minval=1, maxval=31)
+
+// === Initializing some variables
+stop_loss_level = float(na)
+take_profit_level = float(na)
+short_condition = false
+long_condition = false
+
+
+////////////////////////////////
+// Ignore this part for now   //
+//⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇// 
+
+long_confirm = true
+short_confirm = true
+
+long_volume = true
+short_volume = true
+
+//⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆// 
+// Ignore this part for now  //
+///////////////////////////////
+
+// === Define useful functions ===
+start = timestamp(FromYear, FromMonth, FromDay, 00, 00)  // backtest start window
+finish = timestamp(ToYear, ToMonth, ToDay, 23, 59)  // backtest finish window
+window() =>  // create function "within window of time"
+    time >= start and time <= finish ? true : false
+
+
+// =======================================//
+//       USER CHANGEABLE SECTION          // 
+// =======================================//
+
+len = input(title="RSI Period", minval=1, defval=14)
+src = input(title="RSI Source", defval=close)
+lbR = input(title="Pivot Lookback Right", defval=5)
+lbL = input(title="Pivot Lookback Left", defval=5)
+rangeUpper = input(title="Max of Lookback Range", defval=60)
+rangeLower = input(title="Min of Lookback Range", defval=5)
+plotBull = input(title="Plot Bullish", defval=true)
+plotHiddenBull = input(title="Plot Hidden Bullish", defval=false)
+plotBear = input(title="Plot Bearish", defval=true)
+plotHiddenBear = input(title="Plot Hidden Bearish", defval=false)
+bearColor = color.red
+bullColor = color.green
+hiddenBullColor = color.new(color.green, 80)
+hiddenBearColor = color.new(color.red, 80)
+textColor = color.white
+noneColor = color.new(color.white, 100)
+osc = rsi(src, len)
+
+
+hline(50, title="Middle Line", color=#787B86, linestyle=hline.style_dotted)
+obLevel = hline(70, title="Overbought", color=#787B86, linestyle=hline.style_dotted)
+osLevel = hline(30, title="Oversold", color=#787B86, linestyle=hline.style_dotted)
+fill(obLevel, osLevel, title="Background", color=color.rgb(33, 150, 243, 90))
+
+plFound = na(pivotlow(osc, lbL, lbR)) ? false : true
+phFound = na(pivothigh(osc, lbL, lbR)) ? false : true
+_inRange(cond) =>
+	bars = barssince(cond == true)
+	rangeLower <= bars and bars <= rangeUpper
+
+//------------------------------------------------------------------------------
+// Regular Bullish
+// Osc: Higher Low
+
+oscHL = osc[lbR] > valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+
+// Price: Lower Low
+
+priceLL = low[lbR] < valuewhen(plFound, low[lbR], 1)
+bullCond = plotBull and priceLL and oscHL and plFound
+
+
+//------------------------------------------------------------------------------
+// Hidden Bullish
+// Osc: Lower Low
+
+oscLL = osc[lbR] < valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+
+// Price: Higher Low
+
+priceHL = low[lbR] > valuewhen(plFound, low[lbR], 1)
+hiddenBullCond = plotHiddenBull and priceHL and oscLL and plFound
+
+
+
+
+//------------------------------------------------------------------------------
+// Regular Bearish
+// Osc: Lower High
+
+oscLH = osc[lbR] < valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+
+// Price: Higher High
+
+priceHH = high[lbR] > valuewhen(phFound, high[lbR], 1)
+
+bearCond = plotBear and priceHH and oscLH and phFound
+
+
+
+
+//------------------------------------------------------------------------------
+// Hidden Bearish
+// Osc: Higher High
+
+oscHH = osc[lbR] > valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+
+// Price: Lower High
+
+priceLH = high[lbR] < valuewhen(phFound, high[lbR], 1)
+
+hiddenBearCond = plotHiddenBear and priceLH and oscHH and phFound
+
+
+	
+long_div = bullCond 
+short_div = bearCond
+
+plot(bullCond? 1:0)
+
+// Define long condition and short condition
+// Direction is defined by an input on the UI
+if direction == "Conventional"
+    // Conventional means using the indicator traditionally (i.e. the same way stock market does)
+    // Define long condition and short condition
+    short_condition := short_div 
+    long_condition := long_div
+else
+    // Non-conventional (contrarian) means doing things oppositely
+    short_condition := long_div
+    long_condition := short_div
+
+
+
+
+// End of user changeable section
+// ================================
+
+
+
+
+// Order entering
+strategy.entry("Long", strategy.long, when=long_condition and long_confirm and long_volume and want_long and window() and strategy.position_size == 0)
+strategy.entry("Short", strategy.short, when=short_condition and short_confirm and short_volume and want_short and window() and strategy.position_size == 0)
+
+// Risk management
+bought = (long_condition[1] or short_condition[1]) and 
+   abs(strategy.position_size[0]) > abs(strategy.position_size[1])
+since_entry = barssince(bought)
+if strategy.position_size != 0
+    if strategy.position_size > 0
+        //Going long. Do these
+        stop_loss_level := strategy.position_avg_price - sl_atr * average_true_range[since_entry]
+        take_profit_level := strategy.position_avg_price + tp_atr * average_true_range[since_entry]
+        take_profit_level
+    else
+        //Going short. Do these
+        stop_loss_level := strategy.position_avg_price + sl_atr * average_true_range[since_entry]
+        take_profit_level := strategy.position_avg_price - tp_atr * average_true_range[since_entry]
+        take_profit_level
+else
+    if strategy.position_size[1] != 0
+        //Plot one more bar for the order closing bar
+        stop_loss_level := stop_loss_level[1]
+        take_profit_level := take_profit_level[1]
+        take_profit_level
+    else
+        //With no order and not a closing bar. Plot nothing
+        stop_loss_level := na
+        take_profit_level := na
+        take_profit_level
+
+strategy.exit("LongClose", "Long", stop=stop_loss_level, limit=take_profit_level)
+strategy.exit("ShortClose", "Short", stop=stop_loss_level, limit=take_profit_level)
+strategy.close_all(when=time > finish)
+
+plotchar(long_condition? 1:0, char="🟢")
+plotchar(short_condition? 1:0, char="🔴")
+plot(stop_loss_level, style=plot.style_linebr, color=color.red)
+plot(take_profit_level, style=plot.style_linebr, color=color.green)
+//plot(strategy.position_size)
