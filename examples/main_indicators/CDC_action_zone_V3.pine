@@ -1,0 +1,183 @@
+//@version=4
+// PCC Sunday Trade Series
+// BLOCK - Prince of Songkla University, Phuket, Thailand
+// Author: Tanwa Arpornthip
+// Contact: tanwa.a@phuket.psu.ac.th
+// 2021-09-25
+
+strategy("PCC CDC Action Zone", overlay=true, default_qty_type=strategy.percent_of_equity, 
+  default_qty_value=100, commission_type=strategy.commission.percent, commission_value=0, 
+  pyramiding=0, calc_on_order_fills=false, precision=7, calc_on_every_tick=true)
+
+// === STRATEGY PARAMETERS ===
+// === With inputs
+want_long = input(title="Long order?", type=input.bool, defval=true)
+want_short = input(title="Short order?", type=input.bool, defval=true)
+tp_atr = input(title="x ATR TP", type=input.float, defval=1.0, minval=0)
+sl_atr = input(title="x ATR SL", type=input.float, defval=1.0, minval=0)
+atr_range = input(title="ATR period", type=input.integer, defval=14)
+
+direction = input(title="Direction", defval="Conventional", options=["Contrarian", "Conventional"])
+
+// === Without inputs
+average_true_range = atr(atr_range)
+
+// === INPUT BACKTEST RANGE ===
+FromYear = input(defval=2017, title="From Year", minval=2000)
+ToYear = input(defval=9999, title="To Year", minval=2000)
+FromMonth = input(defval=1, title="From Month", minval=1, maxval=12)
+ToMonth = input(defval=1, title="To Month", minval=1, maxval=12)
+FromDay = input(defval=1, title="From Day", minval=1, maxval=31)
+ToDay = input(defval=31, title="To Day", minval=1, maxval=31)
+
+// === Initializing some variables
+stop_loss_level = float(na)
+take_profit_level = float(na)
+short_condition = false
+long_condition = false
+
+
+////////////////////////////////
+// Ignore this part for now   //
+//⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇// 
+
+long_confirm = true
+short_confirm = true
+
+long_volume = true
+short_volume = true
+
+//⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆// 
+// Ignore this part for now  //
+///////////////////////////////
+
+// === Define useful functions ===
+start = timestamp(FromYear, FromMonth, FromDay, 00, 00)  // backtest start window
+finish = timestamp(ToYear, ToMonth, ToDay, 23, 59)  // backtest finish window
+window() =>  // create function "within window of time"
+    time >= start and time <= finish ? true : false
+
+
+// =======================================//
+//       USER CHANGEABLE SECTION          // 
+// =======================================//
+
+// CDC Action Zone V.3 by Piriya33
+// https://www.chaloke.com/
+src = input(title="Data Array",type=input.source,defval=close)
+useBuyMore = input(title="Use buy/sell more signal", type=input.bool, defval=true)
+xsmooth = input(title="Smoothing Period (1 = no smoothing)", type=input.integer, defval=1)
+fastPrd = input(title="Fast EMA period", type=input.integer, defval=12, minval=1)
+slowPrd = input(title="Slow EMA period", type=input.integer, defval=26, minval=1)
+// For Buy/Sell More
+rsiPeriod = input(title="RSI Period", type=input.integer, defval=14, minval=1)
+stochPeriod = input(title="Stoch RSI Period", type=input.integer, defval=14, minval=1)
+kStoch = input(title="%K Stoch RSI Smoothing Value", type=input.integer, defval=3, minval=1)
+dStoch = input(title="%D Stoch RSI Smoothing Value", type=input.integer, defval=3, minval=1)
+ovs = input(title="Stoch RSI Oversold Region", type=input.integer, defval=30, minval=1)
+ovb = input(title="Stoch RSI Overbought Region", type=input.integer, defval=70, minval=1)
+signalThresh = input(title="Stoch RSI signal threshold", type=input.integer, defval=1, minval=0, maxval=1)
+
+xPrice = ema(src, xsmooth)
+fastEMA = ema(xPrice, fastPrd)
+slowEMA = ema(xPrice, slowPrd)
+
+bull = fastEMA > slowEMA
+bear = fastEMA < slowEMA
+
+Green = bull and xPrice > fastEMA
+Red = bear and xPrice < fastEMA
+Yellow = bull and xPrice < fastEMA
+Blue = bear and xPrice > fastEMA
+
+// buySignal = crossover(fastEMA, slowEMA)
+// sellSignal = crossunder(fastEMA, slowEMA)
+buySignal = bull and bear[1]
+sellSignal = bear and bull[1]
+
+rsi = rsi(close, rsiPeriod)
+k = sma(stoch(rsi, rsi, rsi, stochPeriod), kStoch)
+d = sma(k, dStoch)
+
+stochRsiBuySignal = 0
+stochRsiSellSignal = 0
+
+if (bull and (d < ovs and crossover(k, d)))
+    stochRsiBuySignal := 2
+else if (bull and d > ovs and crossover(k, d))
+    stochRsiBuySignal := 1
+else
+    stochRsiBuySignal := 0
+
+if (bear and (d > ovb and crossunder(k, d)))
+    stochRsiSellSignal := 2
+else if (bear and d < ovb and crossunder(k, d))
+    stochRsiSellSignal := 1
+else
+    stochRsiSellSignal := 0
+
+buyMore = stochRsiBuySignal > signalThresh
+sellMore = stochRsiSellSignal > signalThresh
+
+// Define long condition and short condition
+// Direction is defined by an input on the UI
+if direction == "Conventional"
+    // Conventional means using the indicator traditionally (i.e. the same way stock market does)
+    // Define long condition and short condition
+    short_condition := useBuyMore ? sellSignal or sellMore : sellSignal
+    long_condition := useBuyMore ? buySignal or buyMore : buySignal
+else
+    // Non-conventional (contrarian) means doing things oppositely
+    short_condition := useBuyMore ? buySignal or buyMore : buySignal
+    long_condition := useBuyMore ? sellSignal or sellMore : sellSignal
+
+
+
+
+// End of user changeable section
+// ================================
+
+
+
+
+// Order entering
+strategy.entry("Long", strategy.long, when=long_condition and long_confirm and long_volume and want_long and window() and strategy.position_size == 0)
+strategy.entry("Short", strategy.short, when=short_condition and short_confirm and short_volume and want_short and window() and strategy.position_size == 0)
+
+// Risk management
+bought = (long_condition[1] or short_condition[1]) and 
+   abs(strategy.position_size[0]) > abs(strategy.position_size[1])
+since_entry = barssince(bought)
+if strategy.position_size != 0
+    if strategy.position_size > 0
+        //Going long. Do these
+        stop_loss_level := strategy.position_avg_price - sl_atr * average_true_range[since_entry]
+        take_profit_level := strategy.position_avg_price + tp_atr * average_true_range[since_entry]
+        take_profit_level
+    else
+        //Going short. Do these
+        stop_loss_level := strategy.position_avg_price + sl_atr * average_true_range[since_entry]
+        take_profit_level := strategy.position_avg_price - tp_atr * average_true_range[since_entry]
+        take_profit_level
+else
+    if strategy.position_size[1] != 0
+        //Plot one more bar for the order closing bar
+        stop_loss_level := stop_loss_level[1]
+        take_profit_level := take_profit_level[1]
+        take_profit_level
+    else
+        //With no order and not a closing bar. Plot nothing
+        stop_loss_level := na
+        take_profit_level := na
+        take_profit_level
+
+strategy.exit("LongClose", "Long", stop=stop_loss_level, limit=take_profit_level)
+strategy.exit("ShortClose", "Short", stop=stop_loss_level, limit=take_profit_level)
+strategy.close_all(when=time > finish)
+
+plotchar(long_condition? 1:0, char="🟢")
+plotchar(short_condition? 1:0, char="🔴")
+plot(stop_loss_level, style=plot.style_linebr, color=color.red)
+plot(take_profit_level, style=plot.style_linebr, color=color.green)
+//plot(strategy.position_size)
+
