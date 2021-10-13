@@ -5,7 +5,7 @@
 // Contact: tanwa.a@phuket.psu.ac.th
 // 2021-09-25
 
-strategy("PCC CDC Action Zone", overlay=true, default_qty_type=strategy.percent_of_equity, 
+strategy("PCC ADX / DI", overlay=true, default_qty_type=strategy.percent_of_equity, 
   default_qty_value=100, commission_type=strategy.commission.percent, commission_value=0, 
   pyramiding=0, calc_on_order_fills=false, precision=7, calc_on_every_tick=true)
 
@@ -62,26 +62,23 @@ window() =>  // create function "within window of time"
 //       USER CHANGEABLE SECTION          // 
 // =======================================//
 
-// CDC Action Zone V.2 by Piriya33
-// https://www.chaloke.com/
-src = input.source(title="Data Array",defval=ohlc4)
-prd1= input.int(title="Short MA period",defval=12)
-prd2= input.int(title="Long MA period",defval=26)
-AP = ta.ema(src,2)
-Fast = ta.ema(AP,prd1)
-Slow = ta.ema(AP,prd2)
+adxThresh = input.int(title="ADX Strong Trend Threshold", defval=25)
+adxSmoothing = input.int(14, title="ADX Smoothing Period", minval=1, maxval=50)
+diPeriod = input.int(14, minval=1, title="DI Length")
 
+up = ta.change(high)
+down = -ta.change(low)
+plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)
+minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)
+trur = ta.rma(ta.tr, diPeriod)
+plus = fixnan(100 * ta.rma(plusDM, diPeriod) / trur)
+minus = fixnan(100 * ta.rma(minusDM, diPeriod) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), adxSmoothing)
 
-Bullish = Fast>Slow
-Bearish = Fast<Slow
-
-Green = Bullish and AP>Fast
-Red = Bearish and AP<Fast
-Yellow = Bullish and AP<Fast
-Blue = Bearish and AP>Fast
-
-Buy = Bullish and Bearish[1]
-Sell = Bearish and Bullish[1]
+//// defining buy/sell signal ////
+buySignal = ta.crossover(plus, minus) and adx >= adxThresh
+sellSignal = ta.crossunder(plus, minus) and adx >= adxThresh
 
 
 // Define long condition and short condition
@@ -89,12 +86,12 @@ Sell = Bearish and Bullish[1]
 if direction == "Conventional"
     // Conventional means using the indicator traditionally (i.e. the same way stock market does)
     // Define long condition and short condition
-    short_condition := Sell
-    long_condition := Buy
+    short_condition := sellSignal
+    long_condition := buySignal
 else
     // Non-conventional (contrarian) means doing things oppositely
-    short_condition := Buy
-    long_condition := Sell
+    short_condition := buySignal
+    long_condition := sellSignal
 
 
 

@@ -1,34 +1,34 @@
-//@version=4
+//@version=5
 // PCC Sunday Trade Series
 // BLOCK - Prince of Songkla University, Phuket, Thailand
 // Author: Tanwa Arpornthip
 // Contact: tanwa.a@phuket.psu.ac.th
 // 2021-09-25
 
-strategy("PCC CDC Action Zone", overlay=true, default_qty_type=strategy.percent_of_equity, 
+strategy("PCC CDC Action Zone V3", overlay=true, default_qty_type=strategy.percent_of_equity, 
   default_qty_value=100, commission_type=strategy.commission.percent, commission_value=0, 
   pyramiding=0, calc_on_order_fills=false, precision=7, calc_on_every_tick=true)
 
 // === STRATEGY PARAMETERS ===
 // === With inputs
-want_long = input(title="Long order?", type=input.bool, defval=true)
-want_short = input(title="Short order?", type=input.bool, defval=true)
-tp_atr = input(title="x ATR TP", type=input.float, defval=1.0, minval=0)
-sl_atr = input(title="x ATR SL", type=input.float, defval=1.0, minval=0)
-atr_range = input(title="ATR period", type=input.integer, defval=14)
+want_long = input.bool(title="Long order?", defval=true)
+want_short = input.bool(title="Short order?", defval=true)
+tp_atr = input.float(title="x ATR TP", defval=1.0, minval=0)
+sl_atr = input.float(title="x ATR SL", defval=1.0, minval=0)
+atr_range = input.int(title="ATR period", defval=14)
 
-direction = input(title="Direction", defval="Conventional", options=["Contrarian", "Conventional"])
+direction = input.string(title="Direction", defval="Conventional", options=["Contrarian", "Conventional"])
 
 // === Without inputs
-average_true_range = atr(atr_range)
+average_true_range = ta.atr(atr_range)
 
 // === INPUT BACKTEST RANGE ===
-FromYear = input(defval=2017, title="From Year", minval=2000)
-ToYear = input(defval=9999, title="To Year", minval=2000)
-FromMonth = input(defval=1, title="From Month", minval=1, maxval=12)
-ToMonth = input(defval=1, title="To Month", minval=1, maxval=12)
-FromDay = input(defval=1, title="From Day", minval=1, maxval=31)
-ToDay = input(defval=31, title="To Day", minval=1, maxval=31)
+FromYear = input.int(defval=2017, title="From Year", minval=2000)
+ToYear = input.int(defval=9999, title="To Year", minval=2000)
+FromMonth = input.int(defval=1, title="From Month", minval=1, maxval=12)
+ToMonth = input.int(defval=1, title="To Month", minval=1, maxval=12)
+FromDay = input.int(defval=1, title="From Day", minval=1, maxval=31)
+ToDay = input.int(defval=31, title="To Day", minval=1, maxval=31)
 
 // === Initializing some variables
 stop_loss_level = float(na)
@@ -64,23 +64,23 @@ window() =>  // create function "within window of time"
 
 // CDC Action Zone V.3 by Piriya33
 // https://www.chaloke.com/
-src = input(title="Data Array",type=input.source,defval=close)
-useBuyMore = input(title="Use buy/sell more signal", type=input.bool, defval=true)
-xsmooth = input(title="Smoothing Period (1 = no smoothing)", type=input.integer, defval=1)
-fastPrd = input(title="Fast EMA period", type=input.integer, defval=12, minval=1)
-slowPrd = input(title="Slow EMA period", type=input.integer, defval=26, minval=1)
+src = input.source(title="Data Array",defval=close)
+useBuyMore = input.bool(title="Use buy/sell more signal", defval=true)
+xsmooth = input.int(title="Smoothing Period (1 = no smoothing)", defval=1)
+fastPrd = input.int(title="Fast EMA period", defval=12, minval=1)
+slowPrd = input.int(title="Slow EMA period", defval=26, minval=1)
 // For Buy/Sell More
-rsiPeriod = input(title="RSI Period", type=input.integer, defval=14, minval=1)
-stochPeriod = input(title="Stoch RSI Period", type=input.integer, defval=14, minval=1)
-kStoch = input(title="%K Stoch RSI Smoothing Value", type=input.integer, defval=3, minval=1)
-dStoch = input(title="%D Stoch RSI Smoothing Value", type=input.integer, defval=3, minval=1)
-ovs = input(title="Stoch RSI Oversold Region", type=input.integer, defval=30, minval=1)
-ovb = input(title="Stoch RSI Overbought Region", type=input.integer, defval=70, minval=1)
-signalThresh = input(title="Stoch RSI signal threshold", type=input.integer, defval=1, minval=0, maxval=1)
+rsiPeriod = input.int(title="RSI Period", defval=14, minval=1)
+stochPeriod = input.int(title="Stoch RSI Period", defval=14, minval=1)
+kStoch = input.int(title="%K Stoch RSI Smoothing Value", defval=3, minval=1)
+dStoch = input.int(title="%D Stoch RSI Smoothing Value", defval=3, minval=1)
+ovs = input.int(title="Stoch RSI Oversold Region", defval=30, minval=1)
+ovb = input.int(title="Stoch RSI Overbought Region", defval=70, minval=1)
+signalThresh = input.int(title="Stoch RSI signal threshold", defval=1, minval=0, maxval=1)
 
-xPrice = ema(src, xsmooth)
-fastEMA = ema(xPrice, fastPrd)
-slowEMA = ema(xPrice, slowPrd)
+xPrice = ta.ema(src, xsmooth)
+fastEMA = ta.ema(xPrice, fastPrd)
+slowEMA = ta.ema(xPrice, slowPrd)
 
 bull = fastEMA > slowEMA
 bear = fastEMA < slowEMA
@@ -95,23 +95,23 @@ Blue = bear and xPrice > fastEMA
 buySignal = bull and bear[1]
 sellSignal = bear and bull[1]
 
-rsi = rsi(close, rsiPeriod)
-k = sma(stoch(rsi, rsi, rsi, stochPeriod), kStoch)
-d = sma(k, dStoch)
+rsi = ta.rsi(close, rsiPeriod)
+k = ta.sma(ta.stoch(rsi, rsi, rsi, stochPeriod), kStoch)
+d = ta.sma(k, dStoch)
 
 stochRsiBuySignal = 0
 stochRsiSellSignal = 0
 
-if (bull and (d < ovs and crossover(k, d)))
+if (bull and (d < ovs and ta.crossover(k, d)))
     stochRsiBuySignal := 2
-else if (bull and d > ovs and crossover(k, d))
+else if (bull and d > ovs and ta.crossover(k, d))
     stochRsiBuySignal := 1
 else
     stochRsiBuySignal := 0
 
-if (bear and (d > ovb and crossunder(k, d)))
+if (bear and (d > ovb and ta.crossunder(k, d)))
     stochRsiSellSignal := 2
-else if (bear and d < ovb and crossunder(k, d))
+else if (bear and d < ovb and ta.crossunder(k, d))
     stochRsiSellSignal := 1
 else
     stochRsiSellSignal := 0
@@ -146,8 +146,8 @@ strategy.entry("Short", strategy.short, when=short_condition and short_confirm a
 
 // Risk management
 bought = (long_condition[1] or short_condition[1]) and 
-   abs(strategy.position_size[0]) > abs(strategy.position_size[1])
-since_entry = barssince(bought)
+   math.abs(strategy.position_size[0]) > math.abs(strategy.position_size[1])
+since_entry = ta.barssince(bought)
 if strategy.position_size != 0
     if strategy.position_size > 0
         //Going long. Do these
@@ -180,4 +180,3 @@ plotchar(short_condition? 1:0, char="🔴")
 plot(stop_loss_level, style=plot.style_linebr, color=color.red)
 plot(take_profit_level, style=plot.style_linebr, color=color.green)
 //plot(strategy.position_size)
-
