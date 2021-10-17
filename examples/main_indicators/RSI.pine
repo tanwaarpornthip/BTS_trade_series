@@ -1,4 +1,4 @@
-//@version=4
+//@version=5
 // PCC Sunday Trade Series
 // BLOCK - Prince of Songkla University, Phuket, Thailand
 // Author: Tanwa Arpornthip
@@ -11,24 +11,24 @@ strategy("PCC RSI", overlay=true, default_qty_type=strategy.percent_of_equity,
 
 // === STRATEGY PARAMETERS ===
 // === With inputs
-want_long = input(title="Long order?", type=input.bool, defval=true)
-want_short = input(title="Short order?", type=input.bool, defval=true)
-tp_atr = input(title="x ATR TP", type=input.float, defval=1.0, minval=0)
-sl_atr = input(title="x ATR SL", type=input.float, defval=1.0, minval=0)
-atr_range = input(title="ATR period", type=input.integer, defval=14)
+want_long = input.bool(title="Long order?", defval=true)
+want_short = input.bool(title="Short order?", defval=true)
+tp_atr = input.float(title="x ATR TP", defval=1.0, minval=0)
+sl_atr = input.float(title="x ATR SL", defval=1.0, minval=0)
+atr_range = input.int(title="ATR period", defval=14)
 
-direction = input(title="Direction", defval="Conventional", options=["Contrarian", "Conventional"])
+direction = input.string(title="Direction", defval="Conventional", options=["Contrarian", "Conventional"])
 
 // === Without inputs
-average_true_range = atr(atr_range)
+average_true_range = ta.atr(atr_range)
 
 // === INPUT BACKTEST RANGE ===
-FromYear = input(defval=2017, title="From Year", minval=2000)
-ToYear = input(defval=9999, title="To Year", minval=2000)
-FromMonth = input(defval=1, title="From Month", minval=1, maxval=12)
-ToMonth = input(defval=1, title="To Month", minval=1, maxval=12)
-FromDay = input(defval=1, title="From Day", minval=1, maxval=31)
-ToDay = input(defval=31, title="To Day", minval=1, maxval=31)
+FromYear = input.int(defval=2017, title="From Year", minval=2000)
+ToYear = input.int(defval=9999, title="To Year", minval=2000)
+FromMonth = input.int(defval=1, title="From Month", minval=1, maxval=12)
+ToMonth = input.int(defval=1, title="To Month", minval=1, maxval=12)
+FromDay = input.int(defval=1, title="From Day", minval=1, maxval=31)
+ToDay = input.int(defval=31, title="To Day", minval=1, maxval=31)
 
 // === Initializing some variables
 stop_loss_level = float(na)
@@ -62,17 +62,17 @@ window() =>  // create function "within window of time"
 //       USER CHANGEABLE SECTION          // 
 // =======================================//
 
-len = input(14, minval=1, title="Length")
-src = input(close, "Source", type = input.source)
-up = rma(max(change(src), 0), len)
-down = rma(-min(change(src), 0), len)
+len = input.int(14, minval=1, title="Length")
+src = input.source(close, "Source")
+up = ta.rma(math.max(ta.change(src), 0), len)
+down = ta.rma(-math.min(ta.change(src), 0), len)
 rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - (100 / (1 + up / down))
 band1 = hline(70, "Upper Band", color=#787B86)
 bandm = hline(50, "Middle Band", color=color.new(#787B86, 50))
 band0 = hline(30, "Lower Band", color=#787B86)
 
-short_rsi = crossover(rsi,70)
-long_rsi = crossunder(rsi,30)
+short_rsi = ta.crossover(rsi,70)
+long_rsi = ta.crossunder(rsi,30)
 
 // Define long condition and short condition
 // Direction is defined by an input on the UI
@@ -101,8 +101,8 @@ strategy.entry("Short", strategy.short, when=short_condition and short_confirm a
 
 // Risk management
 bought = (long_condition[1] or short_condition[1]) and 
-   abs(strategy.position_size[0]) > abs(strategy.position_size[1])
-since_entry = barssince(bought)
+   math.abs(strategy.position_size[0]) > math.abs(strategy.position_size[1])
+since_entry = ta.barssince(bought)
 if strategy.position_size != 0
     if strategy.position_size > 0
         //Going long. Do these
@@ -135,4 +135,3 @@ plotchar(short_condition? 1:0, char="🔴")
 plot(stop_loss_level, style=plot.style_linebr, color=color.red)
 plot(take_profit_level, style=plot.style_linebr, color=color.green)
 //plot(strategy.position_size)
-
