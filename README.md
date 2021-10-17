@@ -3,8 +3,7 @@
 - Swing trading
 - Indicator-based
 
-
-- [Trade Series playlist on Youtube](https://youtube.com/playlist?list=PLUVy_3zdpWbXIZF_YGKjm85oQbarILwCf)
+[Trade Series playlist on Youtube](https://youtube.com/playlist?list=PLUVy_3zdpWbXIZF_YGKjm85oQbarILwCf)
 
 Pull requests are welcome.
 
