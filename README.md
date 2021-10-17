@@ -1,6 +1,13 @@
-# Phuket Crypto Community (PCC) - Trade Series
+# BLOCK Talk Sunday (BTS) Trade Series
+
+- Swing trading
+- Indicator-based
+
 
 - [Trade Series playlist on Youtube](https://youtube.com/playlist?list=PLUVy_3zdpWbXIZF_YGKjm85oQbarILwCf)
+
+Pull requests are welcome.
+
 
 สนใจติดตาม พูดคุย เรื่องน่าสนใจเกี่ยวกับเทคโนโลยี blockchain
 Follow, like, subscribe เพื่อติดตามทีมวิจัย BLOCK มหาวิทยาลัยสงขลานครินทร์ วิทยาเขตภูเก็ต ได้ที่ช่องทางต่าง ๆ ดังนี้
